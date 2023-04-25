@@ -1,0 +1,61 @@
+/*EXERCÍCIO 3*/
+CREATE OR REPLACE PACKAGE cpf_pkg IS
+  FUNCTION valida_cpf(pv_cpf VARCHAR2) RETURN BOOLEAN;
+
+  FUNCTION digit(pv_newcpf VARCHAR2) RETURN NUMBER;
+END cpf_pkg;
+/
+
+CREATE OR REPLACE PACKAGE BODY cpf_pkg IS
+  FUNCTION valida_cpf(pv_cpf VARCHAR2) RETURN BOOLEAN IS
+    lv_only_digits VARCHAR2(11);
+    lv_newcpf      VARCHAR2(14) := SUBSTR(pv_cpf, 1, 9);
+    le_InvalidFormat EXCEPTION;
+    le_NotNumeric    EXCEPTION;
+  BEGIN
+    -- Verificação se o cpf está no formato e separa apenas os números sem os digitos
+    IF LENGTH(pv_cpf) NOT IN (11, 14) THEN
+      RAISE le_InvalidFormat;
+    ELSIF LENGTH(pv_cpf) = 11 THEN
+      lv_newcpf      := SUBSTR(pv_cpf, 1, 9);
+      lv_only_digits := pv_cpf;
+    ELSE
+      lv_newcpf      := SUBSTR(pv_cpf, 1, 3) || SUBSTR(pv_cpf, 5, 3) ||
+                        SUBSTR(pv_cpf, 9, 3);
+      lv_only_digits := SUBSTR(pv_cpf, 1, 3) || SUBSTR(pv_cpf, 5, 3) ||
+                        SUBSTR(pv_cpf, 9, 3) || SUBSTR(pv_cpf, 13, 2);
+    END IF;
+    IF NOT regexp_like(lv_only_digits, '^[[:digit:]]+$') THEN
+      RAISE le_NotNumeric;
+    END IF;
+    lv_newcpf := lv_newcpf || digit(lv_newcpf);
+    lv_newcpf := lv_newcpf || digit(lv_newcpf);
+    RETURN lv_newcpf = lv_only_digits;
+  EXCEPTION
+    WHEN le_InvalidFormat THEN
+      raise_application_error(-20000,
+                              'Formato inválido: O CPF digitado precisa ser em um dos formatos (xxxxxxxxxxx) ou (xxx.xxx.xxx-xx)');
+    WHEN le_NotNumeric THEN
+      raise_application_error(-20001,
+                              'Formato inválido: Os valores digitados precisam ser numeros');
+  END valida_cpf;
+
+  FUNCTION digit(pv_newcpf VARCHAR2) RETURN NUMBER IS
+    total     NUMBER := 0;
+    ln_digit  NUMBER;
+    ln_cpflen NUMBER := length(pv_newcpf);
+  BEGIN
+    FOR i IN 1 .. ln_cpflen
+    LOOP
+      total := total +
+               (to_number(SUBSTR(pv_newcpf, i, 1)) * (ln_cpflen + 2 - i));
+    END LOOP;
+    ln_digit := 11 - MOD(total, 11);
+    IF ln_digit > 9 THEN
+      RETURN 0;
+    ELSE
+      RETURN ln_digit;
+    END IF;
+  END digit;
+END cpf_pkg;
+/

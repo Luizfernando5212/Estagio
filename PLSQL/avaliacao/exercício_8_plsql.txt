@@ -1,0 +1,149 @@
+/*EXERCÍCIO 8*/
+CREATE SEQUENCE id_processamento_Seq
+                INCREMENT BY 1
+                START WITH 1
+                MAXVALUE 10000;
+                
+CREATE TABLE log_erros(id_processamento NUMBER(10) DEFAULT id_processamento_seq.NEXTVAL,
+                       id_Erro          NUMBER(10),
+                       data_erro        TIMESTAMP,
+                       mensagem_erro    VARCHAR(1000),
+                       linha_arquivo    NUMBER(6),
+                       CONSTRAINT log_erros_pk PRIMARY KEY (id_processamento, id_erro));
+
+CREATE OR REPLACE PACKAGE carga_clp_pkg IS
+  PROCEDURE carga_clp(lv_dir  VARCHAR2,
+                      lv_file VARCHAR2);
+                      
+  PROCEDURE insert_from_clp (pf_file  IN OUT utl_file.file_type,
+                             pn_line  IN OUT NUMBER,
+                             pn_erros IN OUT NUMBER);
+END carga_clp_pkg;
+/
+
+CREATE OR REPLACE PACKAGE BODY carga_clp_pkg IS
+  PROCEDURE carga_clp(lv_dir  VARCHAR2,
+                      lv_file VARCHAR2) IS
+    lf_file        utl_file.file_type;
+    ln_linhas      NUMBER := 0;
+    ln_count_erros NUMBER := 0;
+  BEGIN
+    IF NOT utl_file.is_open(lf_file) THEN
+      lf_file := utl_file.fopen(lv_dir, lv_file, 'R');
+    END IF;
+    LOOP
+      insert_from_clp(lf_file, ln_linhas, ln_count_erros);
+      IF NOT utl_file.is_open(lf_file) THEN
+        EXIT;
+      END IF;
+    END LOOP;
+    dbms_output.put_line((ln_linhas - ln_count_erros - 2) ||
+                         ' Registros importados com sucesso.' || chr(13) ||
+                         ln_count_erros || ' Erros ocorridos.');
+  EXCEPTION
+    WHEN utl_file.invalid_filehandle THEN
+      raise_application_error(-20000, 'Arquivo inválido.');
+  END carga_clp;
+
+  PROCEDURE insert_from_clp(pf_file  IN OUT utl_file.file_type,
+                            pn_line  IN OUT NUMBER,
+                            pn_erros IN OUT NUMBER) IS
+    ln_codigo         NUMBER;
+    lv_erro           VARCHAR2(255);
+    lv_buffer         VARCHAR(100);
+    ln_id_cliente     NUMBER;
+    lv_razao_social   VARCHAR2(80);
+    ln_id_produto     NUMBER;
+    lv_descricao      VARCHAR2(70);
+    ln_preco_unitario NUMBER;
+    lv_type           VARCHAR2(1);
+    lV_hregex         VARCHAR2(102) := '^H[0-9]{14}[a-zA-Z_]{1,46}\.dat {1,80}$';
+    lV_tregex         VARCHAR2(100) := '^T[0-9]{14} {1,85}$';
+    le_HeaderError  EXCEPTION;
+    le_TrailerError EXCEPTION;
+    lb_bool BOOLEAN := TRUE;
+  BEGIN
+    utl_file.get_line(pf_file, lv_buffer);
+    lv_type := SUBSTR(lv_buffer, 1, 1);
+    pn_line := pn_line + 1;
+    IF lv_type = 'H' THEN
+      lb_bool := regexp_like(lv_buffer, lv_hregex);
+      IF NOT lb_bool THEN
+        RAISE le_HeaderError;
+      END IF;
+    ELSIF lv_type = 'C' THEN
+      ln_id_cliente   := to_number(TRIM(BOTH FROM SUBSTR(lv_buffer, 2, 10)));
+      lv_razao_social := TRIM(BOTH FROM SUBSTR(lv_buffer, 12, 80));
+      INSERT INTO cliente
+        (id_cliente,
+         razao_social)
+      VALUES
+        (ln_id_cliente,
+         lv_razao_social);
+    ELSIF lv_type = 'P' THEN
+      ln_id_produto := to_number(TRIM(BOTH FROM SUBSTR(lv_buffer, 2, 10)));
+      lv_descricao  := TRIM(BOTH FROM SUBSTR(lv_buffer, 12, 70));
+      INSERT INTO produto
+        (id_produto,
+         descricao)
+      VALUES
+        (ln_id_produto,
+         lv_descricao);
+    ELSIF lv_type = 'L' THEN
+      ln_id_cliente     := to_number(TRIM(BOTH FROM
+                                          SUBSTR(lv_buffer, 2, 10)));
+      ln_id_produto     := to_number(TRIM(BOTH FROM
+                                          SUBSTR(lv_buffer, 12, 10)));
+      ln_preco_unitario := to_number(TRIM(BOTH FROM
+                                          SUBSTR(lv_buffer, 22, 14)),
+                                     '000G000G000D00',
+                                     'NLS_NUMERIC_CHARACTERS = ,.');
+      INSERT INTO lista_preco
+        (id_cliente,
+         id_produto,
+         preco_unitario)
+      VALUES
+        (ln_id_cliente,
+         ln_id_produto,
+         ln_preco_unitario);
+    ELSIF lv_type = 'T' THEN
+      lb_bool := regexp_like(lv_buffer, lv_tregex);
+      IF NOT lb_bool THEN
+        RAISE le_TrailerError;
+      END IF;
+    END IF;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      utl_file.fclose(pf_file);
+    WHEN le_HeaderError THEN
+      raise_application_error(-20000,
+                              'Arquivo inválido: Arquivo não contém Header ou está em formato inadequado.');
+    WHEN le_TrailerError THEN
+      raise_application_error(-20001,
+                              'Arquivo inválido: Arquivo não contém Trailer ou está em formato inadequado.');
+    WHEN VALUE_ERROR THEN
+      raise_application_error(-20002,
+                              'Arruivo inválido: Arquivo está formatado de maneira inadequada.');
+    WHEN OTHERS THEN
+      ln_codigo := SQLCODE;
+      lv_erro   := SQLERRM;
+      INSERT INTO log_erros
+        (id_erro,
+         data_erro,
+         mensagem_erro,
+         linha_arquivo)
+      VALUES
+        (ln_codigo,
+         CURRENT_TIMESTAMP,
+         lv_erro,
+         pn_line);
+      COMMIT;
+      pn_erros := pn_erros + 1;
+  END insert_from_clp;
+END carga_clp_pkg;
+/
+
+BEGIN
+  carga_cliente_lista_produto.carga_clp('KIPREV_SIDE_DIR', 'carga_lista_preco_lfoliveira.dat');
+END;
+/

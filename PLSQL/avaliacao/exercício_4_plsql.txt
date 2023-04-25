@@ -1,0 +1,79 @@
+/*EXERCÍCIO 4*/
+CREATE OR REPLACE PACKAGE conversor_pkg IS
+  -- A ideia da aplicação está no uso de Dynamic sql
+  -- Préviamente o adm do sistema cadastra as funções de conversão seguindo sempre o mesmo padrão
+  -- [Unidada_origem]_to_[Unidade_destino] E dentro de cada uma das funções deve ser realizado o
+  -- Cálculo de conversão, e retornar o resultado convertido, e com a UM atualizada
+  -- Sendo assim, o usuário chama a função - Converte - com seus parâmetros requeridos
+  -- E essa função chama a função específica de cada caso.
+
+  FUNCTION converte(pn_value NUMBER,
+                    pv_base  VARCHAR2,
+                    pv_dest  VARCHAR2) RETURN VARCHAR2;
+
+  FUNCTION M_to_KM(pn_value NUMBER) RETURN VARCHAR2;
+
+  FUNCTION C_to_F(pn_value NUMBER) RETURN VARCHAR2;
+
+  FUNCTION K_to_C(pn_value NUMBER) RETURN VARCHAR2;
+
+  FUNCTION Ms_to_KMh(pn_value NUMBER) RETURN VARCHAR2;
+END conversor_pkg;
+/
+
+CREATE OR REPLACE PACKAGE BODY conversor_pkg IS
+  FUNCTION converte(pn_value NUMBER,
+                    pv_base  VARCHAR2,
+                    pv_dest  VARCHAR2) RETURN VARCHAR2 IS
+    lv_result VARCHAR2(15);
+  BEGIN
+    EXECUTE IMMEDIATE 'CALL conversor_pkg.' || pv_base || '_to_' || pv_dest || '(' ||
+                      pn_value || ') INTO :lv_result'
+      USING OUT lv_result;
+    RETURN lv_result;
+  EXCEPTION
+    WHEN OTHERS THEN
+      raise_application_error(-20001,
+                              'Não foi possivel realizar essa conversão ' ||
+                              SQLERRM);
+  END converte;
+
+  FUNCTION M_to_KM(pn_value NUMBER) RETURN VARCHAR2 IS
+    lv_result VARCHAR2(15);
+    ln_km     NUMBER;
+  BEGIN
+    ln_km     := (pn_value / 1000);
+    lv_result := to_char(ln_km, 'fm990D00', 'NLS_NUMERIC_CHARACTERS = ,.') ||
+                 ' KM';
+    RETURN lv_result;
+  END M_to_KM;
+
+  FUNCTION C_to_F(pn_value NUMBER) RETURN VARCHAR2 IS
+    lv_result VARCHAR2(15);
+    ln_f      NUMBER;
+  BEGIN
+    ln_f      := (pn_value * 1.8) + 32;
+    lv_result := to_char(ln_f, 'fm990D00', 'NLS_NUMERIC_CHARACTERS = ,.') || ' F';
+    RETURN lv_result;
+  END C_to_F;
+
+  FUNCTION K_to_C(pn_value NUMBER) RETURN VARCHAR2 IS
+    lv_result VARCHAR2(15);
+    ln_c      NUMBER;
+  BEGIN
+    ln_C      := pn_value - 273.15;
+    lv_result := to_char(ln_c, 'fm990D00', 'NLS_NUMERIC_CHARACTERS = ,.') || ' C';
+    RETURN lv_result;
+  END K_to_C;
+
+  FUNCTION Ms_to_KMh(pn_value NUMBER) RETURN VARCHAR2 IS
+    lv_result VARCHAR2(15);
+    ln_kmh    NUMBER;
+  BEGIN
+    ln_kmh    := pn_value * 3.6;
+    lv_result := to_char(ln_kmh, 'fm990D00', 'NLS_NUMERIC_CHARACTERS = ,.') ||
+                 ' KMh';
+    RETURN lv_result;
+  END Ms_to_KMh;
+END conversor_pkg;
+/

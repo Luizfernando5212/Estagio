@@ -1,0 +1,60 @@
+/*EXERCÍCIO 1*/
+CREATE OR REPLACE PACKAGE regex_pkg IS
+  FUNCTION verifica_str(lv_str1  VARCHAR2,
+                        lv_str2  VARCHAR2,
+                        nova_str VARCHAR2) RETURN BOOLEAN;
+
+  FUNCTION cria_regex(lv_str VARCHAR2) RETURN VARCHAR2;
+  
+  FUNCTION conta_char(pv_str1  VARCHAR2,
+                      pv_str2  VARCHAR2,
+                      nova_str VARCHAR2) RETURN BOOLEAN;
+END regex_pkg;
+/
+
+CREATE OR REPLACE PACKAGE BODY regex_pkg IS
+  -- Função verifica se a nova_str é uma intercalação das strings base
+  FUNCTION verifica_str(lv_str1  VARCHAR2,
+                        lv_str2  VARCHAR2,
+                        nova_str VARCHAR2) RETURN BOOLEAN IS
+    ln_strlen NUMBER := LENGTH(lv_str1) + LENGTH(lv_str2);
+  BEGIN
+    RETURN ln_strlen = LENGTH(nova_str) 
+    AND regexp_like(nova_str, cria_regex(lv_str1)) 
+    AND regexp_like(nova_str, cria_regex(lv_str2)) 
+    AND conta_char(lv_Str1, lv_str2, nova_Str);
+  END verifica_str;
+
+  -- Essa função verifica se a quantidade de cada caractere nas strings base é a mesma da string intercalada
+  FUNCTION conta_char(pv_str1  VARCHAR2,
+                      pv_str2  VARCHAR2,
+                      nova_str VARCHAR2) RETURN BOOLEAN IS
+    ln_str1len NUMBER := length(pv_str1);
+    lv_char    VARCHAR2(1);
+    lb_bool    BOOLEAN := TRUE;
+  BEGIN
+    FOR i IN 1 .. ln_str1len
+    LOOP
+      lv_char := substr(pv_str1, i, 1);
+      IF instr(pv_str2, lv_char) != 0 AND lb_bool THEN
+        lb_bool := regexp_count(pv_str1 || pv_str2, lv_char) =
+                   regexp_count(nova_Str, lv_char);
+      END IF;
+    END LOOP;
+    RETURN lb_bool;
+  END conta_char;
+
+  -- Função que retorna um REGEX com os caracteres da string passada por parâmetro
+  FUNCTION cria_regex(lv_Str VARCHAR2) RETURN VARCHAR2 IS
+    lv_regex  VARCHAR2(255) := '^.*';
+    ln_strlen NUMBER := LENGTH(lv_str);
+  BEGIN
+    FOR i IN 1 .. ln_strlen
+    LOOP
+      lv_regex := lv_regex || SUBSTR(lv_str, i, 1) || '{1}.*';
+    END LOOP;
+    lv_regex := lv_regex || '$';
+    RETURN lv_regex;
+  END cria_regex;
+END regex_pkg;
+/

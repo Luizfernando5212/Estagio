@@ -1,0 +1,64 @@
+/*EXERCÍCIO 7*/
+CREATE OR REPLACE PROCEDURE produto_report(lv_dir  VARCHAR2,
+                                           lv_file VARCHAR2) IS
+  lf_file utl_file.file_type;
+  CURSOR lc_carga_lp IS
+    SELECT c.id_cliente,
+           c.razao_social,
+           p.id_produto,
+           l.preco_unitario,
+           p.descricao
+    FROM   cliente c
+    JOIN   lista_preco l
+    ON     c.id_Cliente = l.id_cliente
+    JOIN   produto p
+    ON     p.id_produto = l.id_produto;
+  ln_linhas NUMBER := 0;
+BEGIN
+  IF NOT utl_file.is_open(lf_file) THEN
+    lf_file := utl_file.fopen(lv_dir, lv_file, 'W');
+    utl_file.put_line(lf_file,
+                      rpad('H' || to_char(SYSDATE, 'YYYYMMDDHH24MISS') ||
+                           lv_file,
+                           99,
+                           ' '));
+  END IF;
+  FOR lr_carga IN lc_carga_lp
+  LOOP
+    utl_file.put_line(lf_file,
+                      rpad('C' || lpad(lr_carga.id_cliente, 10, ' ') ||
+                           rpad(lr_carga.razao_social, 80, ' '),
+                           99,
+                           ' '));
+    utl_file.put_line(lf_file,
+                      rpad('P' || lpad(lr_carga.id_produto, 10, ' ') ||
+                           rpad(lr_carga.descricao, 70, ' '),
+                           99,
+                           ' '));
+    utl_file.put_line(lf_file,
+                      rpad('L' || lpad(lr_carga.id_cliente, 10, ' ') ||
+                           lpad(lr_carga.id_produto, 10, ' ') ||
+                           to_char(lr_Carga.preco_unitario,
+                                   'fm000G000G000D00',
+                                   'NLS_NUMERIC_CHARACTERS = ,.'),
+                           99,
+                           ' '));
+    ln_linhas := ln_linhas + 3;
+  END LOOP;
+  ln_linhas := ln_linhas + 2;
+  utl_file.put_line(lf_file,
+                    rpad('T' || lpad(ln_linhas, 14, '0'), 99, ' '));
+  utl_file.fclose(lf_file);
+EXCEPTION
+  WHEN utl_file.invalid_filehandle THEN
+    raise_application_error(-20001, 'Arquivo inválido.');
+  WHEN utl_file.write_error THEN
+    raise_application_error(-20002,
+                            'Não foi possível escrever no arquivo.');
+END produto_report;
+/
+
+BEGIN
+  produto_report('KIPREV_SIDE_DIR', 'carga_lista_preco_lfoliveira.dat');
+END;
+/

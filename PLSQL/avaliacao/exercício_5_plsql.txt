@@ -1,0 +1,40 @@
+/*EXERCÍCIO 5*/
+CREATE OR REPLACE PROCEDURE check_preco_unitario(pn_id_pedido      item_pedido.id_pedido%TYPE,
+                                                 pn_id_produto     item_pedido.id_produto%TYPE,
+                                                 pn_preco_unitario item_pedido.preco_unitario%TYPE) IS
+  ln_preco_unitario item_pedido.preco_unitario%TYPE;
+  ln_id_cliente     pedido.id_cliente%TYPE;
+  le_desconto EXCEPTION;
+BEGIN
+  SELECT p.id_cliente
+  INTO   ln_id_cliente
+  FROM   pedido p
+  WHERE  p.id_pedido = pn_id_pedido;
+
+  SELECT l.preco_unitario
+  INTO   ln_preco_unitario
+  FROM   lista_preco l
+  WHERE  pn_id_produto = l.id_produto
+  AND    l.id_cliente = ln_id_cliente;
+
+  IF (pn_preco_unitario < (0.8 * ln_preco_unitario)) THEN
+    RAISE le_desconto;
+  END IF;
+EXCEPTION
+  WHEN le_desconto THEN
+    raise_application_error(-20000,
+                            'Preço unitário inválido: Preço não pode ter desconto maior que 20% em cima do valor de lista');
+  WHEN OTHERS THEN
+    raise_application_error(-20001, SQLERRM);
+END check_preco_unitario;
+/
+
+CREATE OR REPLACE TRIGGER verifica_preco_trg
+  BEFORE INSERT OR UPDATE ON item_pedido
+  FOR EACH ROW
+BEGIN
+  check_preco_unitario(:new.id_pedido,
+                       :new.id_produto,
+                       :new.preco_unitario);
+END verifica_preco_trg;
+/

@@ -1,0 +1,29 @@
+/*EXERCÍCIO 2*/
+FUNCTIONS: Funções são uma parte muito importate da programação, assim como as funcões matemáticas,
+           elas obrigatóriamente exigem o retorno de um valor, dessa forma, podemos classifiacr uma
+           função em uma ou mais operações que retornam algum tipo de valor, devendo ser alocado a 
+           uma variável ou a um local que receba o tipo de valor retornado.
+           Elas são utilizadas para a modularização de processos que precisam do retorno de um valor,
+           evitando que um mesmo trecho de código se repita desnecessariamente, assim facilitando até
+           mesmo a leitura e possíveis correções necessárias.
+
+PROCEDURE: Procedimentos são semelhantes as funções, porém o grande diferencial é que eles não retornam
+           valor obrigatóriamente, isso é, após a utilização de um procedimento não é necessário que um
+           valor seja retornado, ambos são trechos de código que são utilizados para evitar repetição de 
+           estrututas, as procedures podem ser executadas sem o auxilio de uma variável.
+  
+TYPES:     um tipo é uma estrutura de dados, podendo ela ser primitiva ou não. ao utilizar o %TYPE, estmos
+           nos referindo a um tipo único que pode estar relacionado a uma coluna de uma tabela, ou até mesmo
+           a uma variável. Falando de %ROWTYPE é criado uma RECORD, é mais fácil enxergar como uma estrutura 
+           semelhante a um ARRAY em outras linguagens, é uma estrutura que pode armazenar vários tipos de 
+           dados em apenas um local, porém ela tem o tamanho limitado ao tamanho da tabela em que ela faz
+           referência.
+           Já o terceiro tipo de daods são as collections, também conhecidas como INDEX BY TABLES, é uma
+           estrutura que possui o padrão "KEY" : "VALUE", ela armazena tanto tipos primitivos quanto os
+           tipos mais complexos.
+
+PACKAGES:  Pacotes são as estruturas que servem para armazenar todas as outras, elas são importantes
+           para criar uma organização a mais do seu código, ela permite separar diversos tipos de operações
+           relacionadas a determinado tópico em um mesmo espaço, como por exemplo o pacote: DBMS_XMLDOM
+           com esse pacote, é possível manipular um arquivo XML com muita liberdade.
+           Os pacotes armazenam dentro de si, todos os tipos de tados.
